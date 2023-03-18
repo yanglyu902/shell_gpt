@@ -155,7 +155,7 @@ class ChatGPT:
         self,
         messages: List,
         model: str = "gpt-3.5-turbo",
-        temperature: float = 1,
+        temperature: float = 0.7,
         top_probability: float = 1,
     ) -> Dict:
         """

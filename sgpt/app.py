@@ -64,33 +64,11 @@ def loading_spinner(func: Callable) -> Callable:
     def wrapper(*args, **kwargs):
         if not kwargs.pop("spinner"):
             return func(*args, **kwargs)
-        text = TextColumn("[green]Consulting with robots...")
+        text = TextColumn("[green]Asking chatgpt...")
         with Progress(SpinnerColumn(), text, transient=True) as progress:
             progress.add_task("request")
             return func(*args, **kwargs)
     return wrapper
-
-
-def get_edited_prompt() -> str:
-    """
-    Opens the user's default editor to let them
-    input a prompt, and returns the edited text.
-
-    :return: String prompt.
-    """
-    with NamedTemporaryFile(suffix=".txt", delete=False) as file:
-        # Create file and store path.
-        file_path = file.name
-    editor = os.environ.get("EDITOR", "vim")
-    # This will write text to file using $EDITOR.
-    os.system(f"{editor} {file_path}")
-    # Read file when editor is closed.
-    with open(file_path, "r") as file:
-        output = file.read()
-    os.remove(file_path)
-    if not output:
-        raise BadParameter("Couldn't get valid PROMPT from $EDITOR")
-    return output
 
 
 @loading_spinner
@@ -100,7 +78,6 @@ def get_completion(
     temperature: float,
     top_p: float,
     caching: bool,
-    chat: str,
 ) -> str:
     """
     Generates completions for a given prompt using the OpenAI API.
@@ -115,14 +92,11 @@ def get_completion(
     """
     chat_gpt = ChatGPT(api_key)
     model = "gpt-3.5-turbo"
-    if not chat:
-        return chat_gpt.get_completion(prompt, model, temperature, top_p, caching)
-    return chat_gpt.get_chat_completion(
-        model=model, temperature=temperature, top_probability=top_p, message=prompt, chat_id=chat
-    )
+
+    return chat_gpt.get_completion(prompt, model, temperature, top_p, caching)
 
 
-def typer_writer(text: str, code: bool, shell: bool, animate: bool) -> None:
+def typer_writer(text: str, shell: bool) -> None:
     """
     Writes output to the console, with optional typewriter animation and color.
 
@@ -132,82 +106,41 @@ def typer_writer(text: str, code: bool, shell: bool, animate: bool) -> None:
     :param animate: Enable/Disable typewriter animation.
     :return: None
     """
-    shell_or_code = shell or code
-    color = "magenta" if shell_or_code else None
-    if animate and not shell_or_code:
+    color = "magenta" if shell else None
+    if not shell:
         for char in text:
-            typer.secho(char, nl=False, fg=color, bold=shell_or_code)
+            typer.secho(char, nl=False, fg=color, bold=shell)
             sleep(0.015)
         # Add new line at the end, to prevent % from appearing.
         typer.echo("")
         return
-    typer.secho(text, fg=color, bold=shell_or_code)
-
-
-def echo_chat_messages(chat_id: str) -> None:
-    """
-    Writes all messages from a specified chat ID to the console.
-
-    :param chat_id: String chat id.
-    :return: None
-    """
-    for index, message in enumerate(ChatGPT.chat_cache.get_messages(chat_id)):
-        color = "cyan" if index % 2 == 0 else "green"
-        typer.secho(message, fg=color)
-
-
-def echo_chat_ids() -> None:
-    """
-    Writes all existing chat IDs to the console.
-
-    :return: None
-    """
-    for chat_id in ChatGPT.chat_cache.get_chats():
-        typer.echo(chat_id)
-
+    typer.secho(text, fg=color, bold=shell)
 
 # Using lambda to pass a function to default value, which make it appear as "dynamic" in help.
 def main(
     prompt: str = typer.Argument(None, show_default=False, help="The prompt to generate completions for."),
-    temperature: float = typer.Option(1.0, min=0.0, max=1.0, help="Randomness of generated output."),
+    temperature: float = typer.Option(0.7, min=0.0, max=1.0, help="Randomness of generated output."),
     top_probability: float = typer.Option(1.0, min=0.1, max=1.0, help="Limits highest probable tokens (words)."),
-    chat: str = typer.Option(None, help="Follow conversation with id (chat mode)."),
-    show_chat: str = typer.Option(None, help="Show all messages from provided chat id."),
-    list_chat: bool = typer.Option(False, help="List all existing chat ids."),
     shell: bool = typer.Option(False, "--shell", "-s", help="Provide shell command as output."),
     execute: bool = typer.Option(False, "--execute", "-e", help="Will execute --shell command."),
-    code: bool = typer.Option(False, help="Provide code as output."),
-    editor: bool = typer.Option(False, help="Open $EDITOR to provide a prompt."),
     cache: bool = typer.Option(True, help="Cache completion results."),
-    animation: bool = typer.Option(True, help="Typewriter animation."),
-    spinner: bool = typer.Option(True, help="Show loading spinner during API request."),
 ) -> None:
-    if list_chat:
-        echo_chat_ids()
-        return
-    if show_chat:
-        echo_chat_messages(show_chat)
 
-    if not prompt and not editor:
+    if not prompt:
         raise MissingParameter(param_hint="PROMPT", param_type="string")
 
-    if editor:
-        prompt = get_edited_prompt()
-
     if shell:
-        # If probability and temperature were not changed (default), make response more accurate.
-        if top_probability == 1 == temperature:
-            temperature = 0.4
+        temperature = 0.4
         prompt = make_prompt.shell(prompt)
-    elif code:
-        prompt = make_prompt.code(prompt)
 
     api_key = get_api_key()
+    
     response_text = get_completion(
-        prompt, api_key, temperature, top_probability, cache, chat, spinner=spinner
+        prompt, api_key, temperature, top_probability, cache, spinner=True
     )
 
-    typer_writer(response_text, code, shell, animation)
+    typer_writer(response_text, shell)
+
     if shell and execute and typer.confirm("Execute shell command?"):
         os.system(response_text)
 
