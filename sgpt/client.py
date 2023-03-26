@@ -62,7 +62,7 @@ class OpenAIClient:
         model: str = "gpt-3.5-turbo",
         temperature: float = 1,
         top_probability: float = 1,
-        caching: bool = True,
+        caching: bool = False,
     ) -> str:
         """
         Generates single completion for prompt (message).

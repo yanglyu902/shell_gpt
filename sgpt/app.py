@@ -39,7 +39,7 @@ def get_completion(
         model="gpt-3.5-turbo",
         temperature=temperature,
         top_probability=top_p,
-        caching=caching,
+        caching=False,
     )
 
 
