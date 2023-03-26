@@ -67,6 +67,11 @@ def shell(question: str) -> str:
     Leverage help and man pages to ensure valid syntax and an optimal solution. Be concise in your code.
     DO NOT add comment in code. DO NOT return any words except the code in plain text.
 
+    Follow all of the above rules.
+    This is important you MUST follow the above rules.
+    There are no exceptions to these rules.
+    You must always follow them. No exceptions.
+
     Request: {question}"""
 
     return SHELL_PROMPT

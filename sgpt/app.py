@@ -20,10 +20,7 @@ from click import MissingParameter
 from sgpt import config, make_prompt, OpenAIClient
 from sgpt.utils import (
     loading_spinner,
-    echo_chat_ids,
-    echo_chat_messages,
     typer_writer,
-    get_edited_prompt,
 )
 
 
@@ -33,7 +30,6 @@ def get_completion(
     temperature: float,
     top_p: float,
     caching: bool,
-    chat: str,
 ):
     api_host = config.get("OPENAI_API_HOST")
     api_key = config.get("OPENAI_API_KEY")
@@ -44,7 +40,6 @@ def get_completion(
         temperature=temperature,
         top_probability=top_p,
         caching=caching,
-        chat_id=chat,
     )
 
 
@@ -53,7 +48,6 @@ def main(
     temperature: float = typer.Option(0.7, min=0.0, max=1.0, help="Randomness of generated output."),
     top_probability: float = typer.Option(1.0, min=0.1, max=1.0, help="Limits highest probable tokens (words)."),
     shell: bool = typer.Option(False, "--shell", "-s", help="Provide shell command as output."),
-    execute: bool = typer.Option(False, "--execute", "-e", help="Will execute --shell command."),
     cache: bool = typer.Option(True, help="Cache completion results."),
 ) -> None:
 
@@ -63,16 +57,14 @@ def main(
     if shell:
         temperature = 0.4
         prompt = make_prompt.shell(prompt)
-
-    # api_key = get_api_key()
     
-    response_text = get_completion(
-        prompt, temperature, top_probability, cache, spinner=True
+    completion = get_completion(
+        prompt, temperature, top_probability, cache
     )
 
-    typer_writer(response_text, shell)
-
-    if shell and execute and typer.confirm("Execute shell command?"):
+    typer_writer(completion, shell)
+    
+    if shell and typer.confirm("Execute shell command?"):
         os.system(completion)
 
 
